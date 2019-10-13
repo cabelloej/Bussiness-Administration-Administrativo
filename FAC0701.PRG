@@ -1,0 +1,51 @@
+
+***
+** ON ERROR DO ERRCON
+*STORE SPACE(40) TO QQWW
+*STORE "CONSTRUCTORA LA ESTANCIA DORADA, C.A.   " TO T3
+*STORE 0 TO PPP
+*DO INFORMA
+*if qqww<>t3
+*    store 1 to ppp
+*endif
+*if ppp = 1
+*   store "ERROR DE INSTALACION" to mes
+*   do aviso with mes
+*   close all
+*   quit
+*endif
+***
+SET TALK OFF
+SET ECHO OFF
+STORE .F. TO WFLAGACT
+STORE .F. TO FLAGASK
+SAVE SCRE TO S4
+@ 09,54 CLEAR TO 14,77
+@ 09,54 TO 14,77
+@ 10,55 PROMPT "GRUPOS DE CLIENTES    "
+@ 11,55 PROMPT "CLIENTES              "
+@ 12,55 PROMPT "VENDEDORES            "
+@ 13,55 PROMPT "SERVICIOS / OTROS     "
+MENU TO WSUBOP7
+DO CASE
+   CASE WSUBOP7 = 1
+        DO FAC0701A
+   CASE WSUBOP7 = 2
+        SELECT 2
+        USE FACCLI INDEX FACCLI
+        DO FAC0701B
+        CLOSE DATA
+        CLOSE INDEX
+   CASE WSUBOP7 = 3
+        SELECT 3
+        USE FACVEN INDEX FACVEN
+        DO FAC0701C
+        CLOSE DATA
+        CLOSE INDEX
+   CASE WSUBOP7 = 4
+        DO FAC0701D
+ENDCASE
+restore scre from s4
+RETURN
+
+

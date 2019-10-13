@@ -1,0 +1,243 @@
+***
+*ON ERROR DO ERRCON
+*STORE SPACE(40) TO QQWW
+*STORE "CONSTRUCTORA LA ESTANCIA DORADA, C.A.   " TO T3
+*STORE 0 TO PPP
+*DO INFORMA
+*if qqww<>t3
+*    store 1 to ppp
+*endif
+*if ppp = 1
+*   store "ERROR DE INSTALACION" to mes
+*   do aviso with mes
+*   close all
+*   quit
+*endif
+***
+SELECT 1
+USE FACGRU INDEX FACGRU
+STORE .T. TO R0201
+DO WHILE R0201
+   GO TOP
+   @ 06,1 CLEAR TO 21,78
+   @ 07,30 SAY "ORDENES Y EXISTENCIAS"
+   @ 08,1 TO 8,78
+   STORE SPACE(20) TO WWDESDE
+   STORE SPACE(20) TO WDESDE
+   STORE SPACE(20) TO WORD
+   STORE REPLICATE("Z",20) TO WWHASTA
+   STORE SPACE(20) TO WHASTA
+   @ 10,5 SAY    "**INTERVALO**"
+   @ 11,5 SAY    "DESDE CODIGO :"
+   @ 12,5 SAY    "HASTA CODIGO :"
+   @ 13,5 SAY    "ORD.DE COMPRA:"
+
+   @ 14,5 SAY    "* SALIDA *"
+   @ 15,5 say    "MONITOR ...1"
+   @ 16,5 say    "IMPRESORA..2"
+   @ 17,5 say    "          [ ]"
+   store 1 to wsalida
+   STORE "OPRIMA <ESC> PARA SALIR" TO MES
+   DO MENSAJE WITH MES
+
+
+   @ 11,20 GET WDESDE
+   READ
+   IF READKEY() = 12 .OR READKEY() = 268
+      CLOSE DATA
+      CLOSE INDEX
+      RETURN
+   ENDIF
+   @ 12,20 GET WHASTA
+   READ
+   IF READKEY() = 12 .OR READKEY() = 268
+      CLOSE DATA
+      CLOSE INDEX
+      RETURN
+   ENDIF
+   IF WDESDE = SPACE(20)
+      STORE WWDESDE TO WDESDE
+      STORE "PRIMERO             " TO WMES1
+      @ 11,20 SAY WMES1
+   ENDIF
+   IF WHASTA = SPACE(20)
+      STORE WWHASTA TO WHASTA
+      STORE "ULTIMO              " TO WMES2
+      @ 12,20 SAY WMES2
+   ENDIF
+   IF WHASTA < WDESDE
+      STORE "VERIFIQUE INTERVALO. (Ù)" TO MES
+      DO AVISO WITH MES
+      LOOP
+   ENDIF
+   @ 13,20 GET WORD
+   READ
+
+   @ 17,16 get wsalida picture "#" range 1,2
+   read
+   SAVE SCRE TO INF1
+   STORE "CONTINUAR ? (S/N)" TO TEX
+   STORE "SN" TO WCH
+   DO PREGUNTA
+   IF WCH = "N"
+      CLOSE DATA
+      CLOSE INDEX
+      RETURN
+   ENDIF
+   STORE "ORGANIZANDO INFORMACION, FAVOR ESPERAR ..." TO MES
+   DO MENSAJE WITH MES
+   STORE 0 TO PAGINA
+   STORE 100 TO LINE
+   IF WSALIDA = 1
+      STORE 18 TO WSALTO
+      @ 0,0 CLEAR
+   ELSE
+      SET DEVI TO PRINT
+      STORE 55 TO WSALTO
+   ENDIF
+   SELECT 1
+   USE INVART INDEX INVART
+   SELECT 2
+   USE FACDCGE INDEX FACDCGE
+   IF WORD <> SPACE(20)
+      STORE "ORD"+WORD TO WCLAVEORD
+      FIND &WCLAVEORD
+      IF EOF()
+         STORE "ERROR, ORDEN DE COMPRA NO EXISTE. <ENTER>" TO MES
+         DO AVISO WITH MES
+         CLOSE DATA
+         CLOSE INDEX
+         RETURN
+      ENDIF
+   ENDIF
+   SELECT 3
+   USE FACDCDE
+   SELECT 3
+   STORE "CLASIFICANDO INFORMACION, FAVOR ESPERAR..." TO MES
+   DO MENSAJE WITH MES
+   INDEX ON ITEM TO FACDCDE2
+   STORE ITEM TO WRUPITEM
+   STORE .T. TO WFLAGENCAB
+   STORE 0 TO WTOTALORD
+
+   LOCATE FOR ITEM >= WDESDE
+   DO WHILE .NOT. EOF() .AND. ITEM <= WHASTA
+      *** SELECCION DE SOLO ORDENES NO PROCESADAS
+      SELECT 3
+      IF SUBSTR(NUMERO,1,3) <> "ORD"
+         SKIP
+         LOOP
+      ENDIF
+       IF PROCESADO <> SPACE(23)
+          SELECT 3
+          SKIP
+          LOOP
+       ENDIF
+       *** FIN SELECCION DE ORDENES NO PROCESADAS
+       SELECT 3
+       IF WORD <> SPACE(20) .AND. SUBSTR(NUMERO,4,20) <> WORD
+          SELECT 3
+          SKIP
+          LOOP
+       ENDIF
+
+       IF WFLAGENCAB
+          STORE LINE+1 TO LINE
+          IF LINE >= WSALTO
+             STORE PAGINA + 1 TO PAGINA
+             IF WSALIDA=1 .AND. PAGINA<>1
+                STORE "CONTINUAR ? (S/N)" TO TEX
+                STORE "SN" TO WCH
+                DO PREGUNTA
+                IF WCH = "N"
+                   CLOSE DATA
+                   CLOSE INDEX
+                   RETURN
+                ENDIF
+                @ 0,0 CLEAR
+             ENDIF
+             @ 1,0   SAY QQWW
+             @ 1,60  SAY "FECHA :"+DTOC(DATE())
+             @ 2,0   SAY "ORDENES Y EXISTENCIAS"
+             @ 2,60  SAY "PAGINA:"+STR(PAGINA,2)
+             @ 3,0   SAY REPLICATE("-",80)
+             STORE 4 TO LINE
+          ENDIF
+          SELECT 1
+          FIND &WRUPITEM
+          IF EOF()
+             STORE "NO REGISTRADO EN MAESTRO" TO WITEMDES
+             STORE 0 TO WUNIEXI
+          ELSE
+             STORE DESCRI TO WITEMDES
+             STORE UNIEXI TO WUNIEXI
+          ENDIF
+          @ LINE,0 SAY "A R T I C U L O:"+WRUPITEM+" "+WITEMDES
+          STORE LINE+1 TO LINE
+          @ LINE,0 SAY "TOTAL EXISTENCIA  = "+STR(WUNIEXI,10,2)
+          STORE .F. TO WFLAGENCAB
+          SELECT 3
+          LOOP
+       ENDIF
+       IF ITEM <> WRUPITEM
+          *** RUPTURA
+          STORE LINE+1 TO LINE
+          @ LINE,0 SAY "TOTAL ORDENES     = "+STR(WTOTALORD,10,2)
+          STORE WUNIEXI - WTOTALORD TO WDIFERENCIA
+          STORE LINE+1 TO LINE
+          @ LINE,0 SAY "DIFERENCIA        = "+STR(WDIFERENCIA,10,2)
+          STORE LINE+ 1 TO LINE
+          @ LINE,0 SAY REPLICATE("-",80)
+          STORE ITEM TO WRUPITEM
+          STORE .T. TO WFLAGENCAB
+          STORE 0 TO WTOTALORD
+          LOOP
+       ENDIF
+       STORE LINE+1 TO LINE
+       IF LINE >= WSALTO
+          STORE PAGINA + 1 TO PAGINA
+          IF WSALIDA=1 .AND. PAGINA<>1
+             STORE "CONTINUAR ? (S/N)" TO TEX
+             STORE "SN" TO WCH
+             DO PREGUNTA
+             IF WCH = "N"
+                CLOSE DATA
+                CLOSE INDEX
+                RETURN
+             ENDIF
+             @ 0,0 CLEAR
+          ENDIF
+          @ 1,0   SAY QQWW
+          @ 1,60  SAY "FECHA :"+DTOC(DATE())
+          @ 2,0   SAY "ORDENES Y EXISTENCIAS"
+          @ 2,60  SAY "PAGINA:"+STR(PAGINA,2)
+          @ 3,0   SAY REPLICATE("-",80)
+          STORE 4 TO LINE
+       ENDIF
+       SELECT 3
+       STORE WTOTALORD+CANTIDAD TO WTOTALORD
+       @ LINE,0 SAY "  ORDEN:"+SUBSTR(NUMERO,4,20)+"     UNIDADES:"+STR(CANTIDAD,10,2)
+       SELECT 3
+       SKIP
+   ENDDO
+   IF LINE <100
+      STORE LINE+1 TO LINE
+      @ LINE,0 SAY "TOTAL ORDENES     = "+STR(WTOTALORD,10,2)
+      STORE WUNIEXI - WTOTALORD TO WDIFERENCIA
+      STORE LINE+1 TO LINE
+      @ LINE,0 SAY "DIFERENCIA        = "+STR(WDIFERENCIA,10,2)
+      STORE LINE+ 1 TO LINE
+      @ LINE,0 SAY REPLICATE("-",80)
+   ENDIF
+   IF WSALIDA = 2
+      SET DEVI TO SCRE
+      EJECT
+   ELSE
+      STORE "OPRIMA (Ù) PARA FINALIZAR" TO MES
+      DO AVISO WITH MES
+      RESTORE SCRE FROM INF1
+   ENDIF
+ENDDO
+
+
+
